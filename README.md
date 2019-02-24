@@ -12,10 +12,10 @@ Numpy 1.15.4 <br>
 Put the images you want to test into the "images" folder, run the inference.py,there will output the images' air quality grade and
 air quality index. <br>
 
-```python<br>
+```
 python3 inference.py
 ```
-
+## Files
 The images in "images" folder are sample images, the name is label information, just like 1_44.jpg, the number before "\_" like "1" 
 is air quality grade, the  number after "\_" like "44" is air quality index. <br>
 
