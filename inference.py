@@ -17,69 +17,92 @@ def load_model(path):
             tf.import_graph_def(od_graph_def, name='')
     return model_graph
 
-def load_image(im_path, input_size=64):
-    
-    im = cv2.imread(im_path)
-    h,w = im.shape[:2]
-    if h > w:
-        ratio = float(h/w)
-        w = 500
-        h = int(500*ratio)
-    else:
-        ratio = float(w/h)
-        h = 500
-        w = int(500*ratio)
-    this_im = cv2.resize(im, (w, h))
+def load_image(image, i, input_size=64):
+    h = image.shape[0]
+    w = image.shape[1]
+    image1 = image[:int(h*0.5), :, :]
+    image2 = image[int(h*0.5):, :, :]
+    if i < 4:
+        w_start = int((w/4)*i)
+        h1_start = int((image1.shape[0]/4)*0)
+        h2_start = int((image2.shape[0]/4)*0)
+        im1 = image1[h1_start:h1_start+input_size, w_start:w_start+input_size, :]
+        im2 = image2[h2_start:h2_start+input_size, w_start:w_start+input_size, :]
+    elif 4 <= i < 8:
+        w_start = int((w/4)*(i-4))
+        h1_start = int((image1.shape[0]/4)*1)
+        h2_start = int((image2.shape[0]/4)*1)
+        if image1.shape[0]/4 < 64:
+            h1_start = int((image1.shape[0]/4)*1-(64-image1.shape[0]/4))
+        if image2.shape[0]/4 < 64:
+            h2_start = int((image2.shape[0]/4)*1-(64-image2.shape[0]/4))
+        im1 = image1[h1_start:h1_start+input_size, w_start:w_start+input_size, :]
+        im2 = image2[h2_start:h2_start+input_size, w_start:w_start+input_size, :]
+    elif 8 <= i < 12:
+        w_start = int((w/4)*(i-8))
+        h1_start = int((image1.shape[0]/4)*2)
+        h2_start = int((image2.shape[0]/4)*2)
+        if image1.shape[0]/4 < 64:
+            h1_start = int((image1.shape[0]/4)*2-(64-image1.shape[0]/4))
+        if image2.shape[0]/4 < 64:
+            h2_start = int((image2.shape[0]/4)*2-(64-image2.shape[0]/4))
+        im1 = image1[h1_start:h1_start+input_size, w_start:w_start+input_size, :]
+        im2 = image2[h2_start:h2_start+input_size, w_start:w_start+input_size, :]
+    elif 12 <= i < 16:
+        w_start = int((w/4)*(i-12))
+        h1_start = int((image1.shape[0]/4)*3)
+        h2_start = int((image2.shape[0]/4)*3)
+        if image1.shape[0]/4 < 64:
+            h1_start = int((image1.shape[0]/4)*2-(64-image1.shape[0]/4))
+        if image2.shape[0]/4 < 64:
+            h2_start = int((image2.shape[0]/4)*2-(64-image2.shape[0]/4))
+        im1 = image1[h1_start:h1_start+input_size, w_start:w_start+input_size, :]
+        im2 = image2[h2_start:h2_start+input_size, w_start:w_start+input_size, :]
+    return im1, im2
 
-    newImages = []
-    image1 = this_im[:int(this_im.shape[0]/2), :, :]
-    image2 = this_im[int(this_im.shape[0]/2):, :, :]
-    images = [image1, image2]
-    for this_im in images:
-        height = this_im.shape[0]
-        width = this_im.shape[1]
-        #random crop
-        end_y = height - input_size
-        end_x = width - input_size
-        x_start = np.random.randint(0, end_x)
-        y_start = np.random.randint(0, end_y)
-        newImage = this_im[y_start:y_start + input_size, x_start:x_start + input_size, :]
-        newImage = np.expand_dims(np.array(newImage, dtype=np.float32), 0)
-        newImages.append(newImage)
-    
-    return newImages[0],newImages[1]
+def test_batch(image_path):
+    image = cv2.imread(image_path)
+    images1 = []
+    images2 = []
+    for i in range(16):
+        image1, image2 = load_image(image, i)
+        images1.append(image1)
+        images2.append(image2)
+    images1 = np.array(images1, dtype=np.float32)
+    images2 = np.array(images2, dtype=np.float32)
+    return images1, images2
 
 def inference(image_dir):
-    model_graph1 = load_model('models/model-classification.pb')
-    model_graph2 = load_model('models/model-regression.pb')
+    model_graph = load_model('models/model_OR.pb')
 
-    inputs11 = model_graph1.get_tensor_by_name('input_image:0')
-    inputs12 = model_graph1.get_tensor_by_name('input_image_1:0')
-    inputs21 = model_graph2.get_tensor_by_name('input_image:0')
-    inputs22 = model_graph2.get_tensor_by_name('input_image_1:0')
-    prediction1 = model_graph1.get_tensor_by_name('prediction:0')
-    prediction2 = model_graph2.get_tensor_by_name('fc8/BiasAdd:0')
-    keep_prob1 = model_graph1.get_tensor_by_name('keep_prob:0')
-    keep_prob2 = model_graph2.get_tensor_by_name('keep_prob:0')
+    inputs1 = model_graph.get_tensor_by_name('input_image:0')
+    inputs2 = model_graph.get_tensor_by_name('input_image_1:0')
+    prediction = model_graph.get_tensor_by_name('prediction:0')
+    keep_prob = model_graph.get_tensor_by_name('keep_prob:0')
 
-    input_size = inputs11.get_shape()[1]
+    sess = tf.Session(graph=model_graph)
+    N = 0
+    acc = 0
+    nb_acc = 0
+    for root, dirs, files in os.walk(image_dir):
+        for dir in dirs:
+            dir_path = os.path.join(root, dir)
+            for file in os.listdir(dir_path):
+                image_path = os.path.join(dir_path, file)
+                gt_label = int(dir)
+                image1, image2 = test_batch(image_path)
+                pred = sess.run(prediction, feed_dict={inputs1: image1, inputs2: image2, keep_prob: 1.0})
+                result = np.argmax(np.bincount(np.argmax(pred, 1))) + 1
+                print(file, 'Prediction: ', result, 'Label: ', gt_label)
+                if result == gt_label:
+                    acc += 1
+                if result == gt_label or (result-1) == gt_label or (result + 1) == gt_label:
+                    nb_acc += 1
+                N += 1
+    print('Accuracy: ', acc/N)
+    print('Neibor Accuracy: ', nb_acc/N)
 
-    sess1 = tf.Session(graph=model_graph1)
-    sess2 = tf.Session(graph=model_graph2)
-    for file in os.listdir(image_dir):
-        image_path = os.path.join(image_dir, file)
-        results1 = [0, 0, 0, 0, 0, 0]
-        results2 = 0
-        for i in range(20):
-            image1, image2 = load_image(image_path, input_size)
-            pred1 = sess1.run(prediction1, feed_dict={inputs11: image1, inputs12: image2, keep_prob1: 1.0})
-            pred2 = sess2.run(prediction2, feed_dict={inputs21: image1, inputs22: image2, keep_prob2: 1.0})
-            results1[np.argmax(pred1)] += 1
-            results2 += np.squeeze(pred2)
-        result1 = np.argmax(results1) + 1
-        result2 = int(np.round(results2/20))
-        print(file, 'Grade: ', result1, 'Index: ', result2)
 
 if __name__ == '__main__':
-        image_dir = 'images'
-        inference(image_dir)
+    image_dir = 'images'
+    inference(image_dir)
