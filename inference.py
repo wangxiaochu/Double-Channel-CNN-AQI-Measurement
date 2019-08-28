@@ -73,7 +73,7 @@ def test_batch(image_path):
     return images1, images2
 
 def inference(image_dir):
-    model_graph = load_model('models/model_OR.pb')
+    model_graph = load_model('models/model_OR/model_OR.pb')
 
     inputs1 = model_graph.get_tensor_by_name('input_image:0')
     inputs2 = model_graph.get_tensor_by_name('input_image_1:0')
