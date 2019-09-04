@@ -100,7 +100,7 @@ def inference(image_dir):
                     nb_acc += 1
                 N += 1
     print('Accuracy: ', acc/N)
-    print('Neibor Accuracy: ', nb_acc/N)
+    print('Neighbor Accuracy: ', nb_acc/N)
 
 
 if __name__ == '__main__':
